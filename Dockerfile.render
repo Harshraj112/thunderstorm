@@ -1,0 +1,45 @@
+# PRAMAAN for Render (or any Docker host), with TruFor and the AI-image detector built into the image.
+#   Render:  push the repo to GitHub, then New > Blueprint (uses render.yaml), see DEPLOY_RENDER.md
+#   Locally: docker build -f Dockerfile.render -t pramaan . && docker run -p 8000:8000 -e PRAMAAN_PASSWORD=x pramaan
+#
+# Build args: WITH_TRUFOR=0 / WITH_AIGI=0 make a smaller image that fits in less RAM (those detectors then show
+# "not installed" and every other check still runs).
+FROM python:3.11-slim
+
+ARG WITH_TRUFOR=1
+ARG WITH_AIGI=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg tesseract-ocr libimage-exiftool-perl fonts-dejavu-core libgl1 libglib2.0-0 git curl unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+ENV PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1 \
+    PRAMAAN_MODELS=/app/models HF_HOME=/app/models/hf
+
+# 1. Python packages (CPU-only PyTorch: ~200 MB instead of ~2 GB of CUDA libraries)
+COPY requirements.txt requirements-ml.txt ./
+RUN pip install -r requirements.txt
+RUN if [ "$WITH_TRUFOR" = "1" ] || [ "$WITH_AIGI" = "1" ]; then \
+        pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision && \
+        pip install "transformers>=4.50" accelerate timm yacs tqdm ; \
+    fi
+
+# 2. The app (data/, models/TruFor, models/hf and node_modules are excluded by .dockerignore)
+COPY . .
+
+# 3. Test exhibits for the demo kit (generated; the real ones are in samples/real)
+RUN python scripts/make_demo_samples.py demo_samples
+
+# 4. Models, downloaded once at build time so the running service never needs the internet
+RUN if [ "$WITH_AIGI" = "1" ]; then python scripts/install_models.py; fi
+RUN if [ "$WITH_TRUFOR" = "1" ]; then \
+        python scripts/setup_all.py --trufor && \
+        python -c "from pramaan.analyzers.image import dl_plugins as d; ok, why = d.trufor_status(); print('TruFor:', why); assert ok" && \
+        rm -f models/TruFor_weights.zip ; \
+    fi
+
+# 5. Runtime. /var/data is the Render persistent disk: cases, evidence, ledger, reports and the lab signing key.
+ENV PRAMAAN_DATA=/var/data HF_HUB_OFFLINE=1 PRAMAAN_WORKERS=1 PRAMAAN_TRUFOR_MAX_SIDE=1280
+EXPOSE 8000
+CMD ["sh", "-c", "exec uvicorn pramaan.api.server:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

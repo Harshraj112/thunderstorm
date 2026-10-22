@@ -1,0 +1,32 @@
+# Air-gapped deployment: build once on a connected machine, `docker save` the image, carry it into the lab.
+services:
+  pramaan:
+    build: .
+    image: pramaan:1.0
+    ports: ["8000:8000"]
+    volumes:
+      - pramaan-data:/data          # evidence store (write-once), ledger DB, reports, lab key
+      - ./models:/app/models        # optional calibration.json / trained probes
+    environment:
+      PRAMAAN_LAB: "State Forensic Science Laboratory"
+      PRAMAAN_BASE_URL: "http://localhost:8000"   # printed in report QR codes
+      PRAMAAN_GRID_HZ: "50"
+      PRAMAAN_WORKERS: "2"
+      # PRAMAAN_API_KEY: "change-me"
+      # PRAMAAN_OLLAMA_URL: "http://ollama:11434"  # optional local LLM narration
+    restart: unless-stopped
+    networks: [lab]
+
+  # Optional: local LLM for narration (no internet needed once the model is pulled)
+  # ollama:
+  #   image: ollama/ollama
+  #   volumes: [ollama:/root/.ollama]
+  #   networks: [lab]
+
+networks:
+  lab:
+    internal: false   # set to true on the evidence network to forbid any outbound traffic
+
+volumes:
+  pramaan-data:
+  # ollama:

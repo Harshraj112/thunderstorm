@@ -1,0 +1,14 @@
+.git
+**/__pycache__
+*.pyc
+.venv
+data/
+demo_samples/
+models/TruFor/
+models/hf/
+models/TruFor_weights.zip
+models/local_settings.json
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+*.zip
