@@ -1,0 +1,7 @@
+# Deep-learning extras (CPU is fine; GPU speeds them up). Installed by scripts/setup_all.py.
+torch>=2.2
+transformers>=4.45          # AI-image classifier (SigLIP 2) and SSL voice front ends
+accelerate>=0.30
+# optional, installed separately by setup_all.py so one failure does not block the rest:
+#   torchaudio, open_clip_torch (CLIP probe), c2pa-python (Content Credentials verification)
+# TruFor lives in its own conda env (models/TruFor), set up by: python scripts/setup_all.py --trufor

@@ -1,0 +1,17 @@
+# Core (CPU, fully offline once installed)
+starlette>=0.37
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+numpy>=1.26
+scipy>=1.11
+opencv-python-headless>=4.9
+scikit-image>=0.22
+scikit-learn>=1.4
+pillow>=10.2
+pillow-heif>=0.18           # iPhone/Android HEIC photos (optional but recommended)
+matplotlib>=3.8
+reportlab>=4.1
+cryptography>=42
+pytesseract>=0.3.10
+requests>=2.31
+# System packages (see Dockerfile): ffmpeg, tesseract-ocr, optionally libimage-exiftool-perl

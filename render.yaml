@@ -1,0 +1,29 @@
+# Render Blueprint: New > Blueprint > pick this repo. See DEPLOY_RENDER.md.
+services:
+  - type: web
+    name: pramaan
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    plan: 2c-4g               # 2 CPU / 4 GB RAM (legacy name "Pro"). TruFor + the AI-image model need ~3 GB.
+    region: singapore         # closest Render region to India
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit # redeploy on every push to the main branch
+    disk:
+      name: pramaan-data
+      mountPath: /var/data    # cases, evidence, custody ledger, reports, lab signing key
+      sizeGB: 5
+    envVars:
+      - key: PRAMAAN_PASSWORD
+        sync: false           # Render asks you for it on first deploy
+      - key: PRAMAAN_USER
+        value: pramaan
+      - key: PRAMAAN_LAB
+        value: "Team ThunderStorm · PRAMAAN demo laboratory"
+      - key: PRAMAAN_WORKERS
+        value: "1"
+      - key: PRAMAAN_THREADS
+        value: "2"
+      - key: PRAMAAN_TRUFOR_MAX_SIDE
+        value: "1280"
+      - key: PRAMAAN_TRUFOR_TIMEOUT
+        value: "240"
