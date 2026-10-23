@@ -176,3 +176,6 @@ logs/
 
 # Always preserve committed test fixtures
 !samples/**
+data/work/
+data/thumbs/
+data/reports/
