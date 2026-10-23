@@ -1,0 +1,178 @@
+[
+  {
+    "file": "R01_iphone_original.jpg",
+    "kind": "image",
+    "tampered": false,
+    "title": "iPhone photo, straight from the phone",
+    "story": "Full-resolution iPhone JPEG with its original EXIF, GPS block and embedded thumbnail.",
+    "source": "github.com/ianare/exif-samples",
+    "expect": "",
+    "real": true,
+    "measured": "No indications of manipulation detected"
+  },
+  {
+    "file": "R02_canon_resized_in_gimp.jpg",
+    "kind": "image",
+    "tampered": true,
+    "title": "Camera photo re-saved in GIMP",
+    "story": "A Canon EOS 40D photo that the dataset author shrank in GIMP. Not a camera original, even though the camera's EXIF is still inside.",
+    "source": "github.com/ianare/exif-samples",
+    "expect": "flagged: GIMP in the Software tag, pixel size differs from EXIF",
+    "real": true,
+    "measured": "Indications of manipulation"
+  },
+  {
+    "file": "R03_nokia_gps_original.jpg",
+    "kind": "image",
+    "tampered": false,
+    "title": "Geotagged phone photo (Nokia 8.3)",
+    "story": "Real phone photo whose GPS block records the satellite clock.",
+    "source": "github.com/ianare/exif-samples",
+    "expect": "GPS clock agrees; stays cautious",
+    "real": true,
+    "measured": "Inconclusive"
+  },
+  {
+    "file": "R04_nokia_photo_backdated.jpg",
+    "kind": "image",
+    "tampered": true,
+    "title": "Same phone photo, date edited",
+    "story": "Capture date moved 3 days earlier with a metadata editor; pixels untouched. The GPS satellite clock still records the true time.",
+    "source": "github.com/ianare/exif-samples (edited)",
+    "expect": "flagged: GPS satellite clock is 3 days off the capture date",
+    "real": true,
+    "measured": "Indications of manipulation"
+  },
+  {
+    "file": "R11_cctv_real_dvr_export.mp4",
+    "kind": "video",
+    "tampered": false,
+    "title": "Real street CCTV (DVR export)",
+    "story": "Real pedestrian surveillance footage (OpenCV/PETS sample) with a DVR on-screen clock, encoded once.",
+    "source": "github.com/opencv/opencv (samples/data/vtest.avi); OSD overlay added",
+    "expect": "clock consistent with the file timeline; stays cautious",
+    "real": true,
+    "measured": "Inconclusive"
+  },
+  {
+    "file": "R12_cctv_real_8s_deleted.mp4",
+    "kind": "video",
+    "tampered": true,
+    "title": "Same CCTV with 8 s removed",
+    "story": "Eight seconds cut at 0:30 in an editor and the clip re-exported; the picture flows on without a jump.",
+    "source": "derived from R11",
+    "expect": "flagged: on-screen clock skips 8 s at 0:30; re-encoding footprint at the cut",
+    "real": true,
+    "measured": "Strong indications of manipulation"
+  },
+  {
+    "file": "R13_cctv_real_loop_insert.mp4",
+    "kind": "video",
+    "tampered": true,
+    "title": "Same CCTV with footage looped",
+    "story": "0:26–0:34 overwritten with a copy of 0:10–0:18, the classic way to make a person 'disappear'.",
+    "source": "derived from R11",
+    "expect": "flagged: footage repeats, clock runs backwards at 0:26",
+    "real": true,
+    "measured": "Strong indications of manipulation"
+  },
+  {
+    "file": "R14_statement_original.mp4",
+    "kind": "video",
+    "tampered": false,
+    "title": "Recorded statement (real speaker)",
+    "story": "Frontal recording of a speaker reading sentences; lips and sound in sync.",
+    "source": "GRID audio-visual corpus via github.com/rizkiarm/LipNet",
+    "expect": "",
+    "real": true,
+    "measured": "No indications of manipulation detected"
+  },
+  {
+    "file": "R15_statement_audio_relaid.mp4",
+    "kind": "video",
+    "tampered": true,
+    "title": "Same statement, audio re-laid",
+    "story": "The sound track was exported and laid back 500 ms late – as when a statement's audio is replaced.",
+    "source": "derived from R14",
+    "expect": "flagged: speech 440 ms behind the lips",
+    "real": true,
+    "measured": "Indications of manipulation"
+  },
+  {
+    "file": "R16_statement_words_replaced.mp4",
+    "kind": "video",
+    "tampered": true,
+    "title": "Same statement, words replaced",
+    "story": "From 0:15 the speech was replaced by a re-recording at a different pace (same voice); the picture is untouched.",
+    "source": "derived from R14",
+    "expect": "flagged: lips stop matching the speech after about 14 s",
+    "real": true,
+    "measured": "Indications of manipulation"
+  },
+  {
+    "file": "R20_room_recording_50hz.wav",
+    "kind": "audio",
+    "tampered": false,
+    "title": "Real room recording with mains hum",
+    "story": "Genuine recording made on a 50 Hz power grid; its electrical-network-frequency trace is continuous.",
+    "source": "github.com/ghua-ac/ENF-WHU-Dataset (H1)",
+    "expect": "",
+    "real": true,
+    "measured": "Inconclusive"
+  },
+  {
+    "file": "R21_room_recording_cut.wav",
+    "kind": "audio",
+    "tampered": true,
+    "title": "Same recording, 3.3 s cut out",
+    "story": "A sentence removed at 0:24 and the ends joined seamlessly.",
+    "source": "derived from R20",
+    "expect": "hard case: the phone's mains hum is too noisy for phase analysis, so the test abstains",
+    "real": true,
+    "measured": "Inconclusive"
+  },
+  {
+    "file": "R22_room_recording_insert.wav",
+    "kind": "audio",
+    "tampered": true,
+    "title": "Same recording with a 6 s insert",
+    "story": "Six seconds from a DIFFERENT recording session spliced in at 0:20.",
+    "source": "derived from R20 + ENF-WHU H1/05",
+    "expect": "hard case: a noise-floor step at 0:26 is found, but on its own it stays below the threshold",
+    "real": true,
+    "measured": "Inconclusive"
+  },
+  {
+    "file": "R23_speech_genuine.mp3",
+    "kind": "audio",
+    "tampered": false,
+    "title": "Genuine public speech",
+    "story": "Real speech recording from the Resemblyzer fake-speech demo.",
+    "source": "github.com/resemble-ai/Resemblyzer",
+    "expect": "",
+    "real": true,
+    "measured": "Inconclusive"
+  },
+  {
+    "file": "R24_speech_voice_clone.mp3",
+    "kind": "audio",
+    "tampered": true,
+    "title": "AI voice clone of the same speaker",
+    "story": "Synthetic speech generated with a commercial voice-cloning model (Resemblyzer demo).",
+    "source": "github.com/resemble-ai/Resemblyzer",
+    "expect": "flagged: exact digital silence between sentences, typical of TTS output",
+    "real": true,
+    "measured": "Indications of manipulation"
+  },
+  {
+    "file": "R25_battery_recorder_no_hum.wav",
+    "kind": "audio",
+    "tampered": false,
+    "title": "Real recording without mains hum",
+    "story": "Captured away from the power grid – the ENF test must abstain rather than guess.",
+    "source": "github.com/ghua-ac/ENF-WHU-Dataset (H0)",
+    "expect": "no mains hum, so the ENF test abstains",
+    "real": true,
+    "measured": "Inconclusive"
+  }
+]
