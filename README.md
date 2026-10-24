@@ -13,7 +13,6 @@ for a Section 63 certificate under the Bharatiya Sakshya Adhiniyam, 2023. Everyt
 | **Authenticity** | 20+ forensic checks across metadata, compression, sensor noise, on-screen clocks, frame continuity, colour filters, mains-hum (ENF), synthetic voice and AI images |
 | **Proof of AI content** | Built-in offline Content Credentials (C2PA) reader: signature and content hash verified |
 | **Output** | Ordinal verdict with plain labels, PS-05 metadata table, signed PDF report with QR verification |
-| **Result on the PS-05 dataset** | 21 / 21 labelled files correct, 0 false alarms |
 
 \* HEIC needs the optional `pillow-heif` package (installed by the setup script).
 
