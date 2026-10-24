@@ -42,6 +42,14 @@ MODELS = ROOT / "models"
 SETTINGS = MODELS / "local_settings.json"
 TRUFOR_REPO = "https://github.com/grip-unina/TruFor"
 TRUFOR_WEIGHTS_URL = "https://www.grip.unina.it/download/prog/TruFor/TruFor_weights.zip"
+# Tried in order. The official GRIP server is sometimes down, so a public Hugging Face copy is the fallback.
+# Every download is checked against TruFor's published MD5 below, so a wrong or modified file is rejected
+# whichever source it came from. Set PRAMAAN_TRUFOR_WEIGHTS_URL to put your own copy first (e.g. a Drive link).
+TRUFOR_WEIGHTS_URLS = [u for u in (
+    os.environ.get("PRAMAAN_TRUFOR_WEIGHTS_URL"),
+    TRUFOR_WEIGHTS_URL,
+    "https://huggingface.co/DaniilOr/detect/resolve/main/TruFor_weights.zip",
+) if u]
 TRUFOR_WEIGHTS_MD5 = "7bee48f3476c75616c3c5721ab256ff8"          # published in TruFor's README
 TRUFOR_DIR = MODELS / "TruFor" / "TruFor_train_test"
 OS = platform.system()          # Windows / Linux / Darwin
@@ -175,7 +183,8 @@ def download(url: str, dest: Path) -> None:
     if DRY:
         return
     tmp = dest.with_suffix(dest.suffix + ".part")
-    with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
+    req = urllib.request.Request(url, headers={"User-Agent": "pramaan-setup/1.9 (+python urllib)"})
+    with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
         total = int(r.headers.get("Content-Length") or 0)
         done = 0
         while True:
@@ -209,7 +218,7 @@ def place_trufor_weights(zip_path: Path) -> bool:
             return False
         with z.open(member) as src, open(target, "wb") as dst:
             shutil.copyfileobj(src, dst, 1 << 20)
-    print(f"   weights in place: {target.relative_to(ROOT)}")
+    print(f"   weights in place: {target}")
     return True
 
 
@@ -256,12 +265,28 @@ def install_trufor(zip_override: Path | None, gpu: bool, use_conda: bool = False
     weights = TRUFOR_DIR / "pretrained_models" / "trufor.pth.tar"
     if not weights.exists():
         z = zip_override or (MODELS / "TruFor_weights.zip")
+        if not zip_override and z.exists() and not DRY and md5(z) != TRUFOR_WEIGHTS_MD5:
+            print("   removing an incomplete or wrong TruFor_weights.zip from an earlier attempt")
+            z.unlink()
         if not z.exists():
-            try:
-                download(TRUFOR_WEIGHTS_URL, z)
-            except Exception as e:
-                return record("TruFor", False, f"weights download failed ({e}). Download {TRUFOR_WEIGHTS_URL} in a "
-                                               "browser, then run: python scripts/setup_all.py --trufor --trufor-zip <file>")
+            errors = []
+            for url in TRUFOR_WEIGHTS_URLS:
+                try:
+                    download(url, z)
+                except Exception as e:
+                    errors.append(f"{url.split('/')[2]}: {e}")
+                    print(f"   ! {url.split('/')[2]} failed ({e}); trying the next source")
+                    continue
+                if DRY or md5(z) == TRUFOR_WEIGHTS_MD5:
+                    break
+                errors.append(f"{url.split('/')[2]}: MD5 mismatch")
+                print(f"   ! file from {url.split('/')[2]} does not match TruFor's published MD5; trying the next source")
+                z.unlink()
+            if not z.exists():
+                return record("TruFor", False, "weights download failed from every source (" + "; ".join(errors) +
+                              "). Download TruFor_weights.zip in a browser from any of: " +
+                              ", ".join(TRUFOR_WEIGHTS_URLS) + " then run: python scripts/setup_all.py --trufor "
+                              "--trufor-zip <file>")
         if not place_trufor_weights(z):
             return record("TruFor", False, "weights not usable (see above)")
     else:
