@@ -65,7 +65,13 @@ def _trufor_input(src: Path, work: Path) -> Path:
 def _trufor_run(inp: Path, out: Path) -> None:
     cmd = os.environ.get("PRAMAAN_TRUFOR_CMD")
     if cmd:
-        subprocess.run(shlex.split(cmd.format(inp=inp, out=out)), check=True, timeout=TRUFOR_TIMEOUT, capture_output=True)
+        r = subprocess.run(shlex.split(cmd.format(inp=inp, out=out)), timeout=TRUFOR_TIMEOUT, capture_output=True, text=True)
+        if not out.exists():                       # a custom command may write into the folder instead of the file
+            found = next((p for p in out.parent.rglob("*.npz") if p != out), None)
+            if found:
+                found.replace(out)
+        if not out.exists():
+            raise RuntimeError(_trufor_error(r.stderr or "", r.stdout or "") or f"exit code {r.returncode}, no output")
         return
     import sys
     py = os.environ.get("PRAMAAN_TRUFOR_PYTHON", sys.executable)    # the Python that runs TruFor
@@ -77,9 +83,17 @@ def _trufor_run(inp: Path, out: Path) -> None:
     threads = str(max(1, config.usable_cpus() - (0 if config.usable_cpus() <= 2 else 1)))
     env = {**os.environ, "TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD": "1", "OMP_NUM_THREADS": threads, "MKL_NUM_THREADS": threads}
     r = subprocess.run(args, cwd=TRUFOR_DIR, timeout=TRUFOR_TIMEOUT, capture_output=True, text=True, env=env)
-    if r.returncode != 0:
-        raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1][:300] if (r.stderr or r.stdout) else
-                           f"exit code {r.returncode}")
+    if r.returncode != 0 or not out.exists():
+        # TruFor's test.py catches errors during inference, prints the traceback and still exits 0, so a missing
+        # output file means "it failed": surface its last error line instead of a vague message.
+        raise RuntimeError(_trufor_error(r.stderr or "", r.stdout or "") or f"exit code {r.returncode}, no output")
+
+
+def _trufor_error(stderr: str, stdout: str) -> str:
+    lines = [ln.strip() for ln in (stderr + "\n" + stdout).splitlines() if ln.strip()]
+    lines = [ln for ln in lines if not ln.startswith(("0%", "100%")) and "it/s]" not in ln and "s/it]" not in ln]
+    err = next((ln for ln in reversed(lines) if "Error" in ln or "Exception" in ln), None)
+    return (err or (lines[-1] if lines else ""))[:300]
 
 
 def trufor(ctx: Context) -> list[Finding]:
@@ -89,6 +103,11 @@ def trufor(ctx: Context) -> list[Finding]:
                             f"Not installed: {why}. Classical localisers are used instead.")]
     out_dir = ctx.work_dir / "trufor"
     out_dir.mkdir(exist_ok=True)
+    # An explicit .npz FILE name: given a folder, TruFor builds the output path by string replacement that breaks on
+    # Windows back-slashes (the result lands at the drive root), so we never let it build the path.
+    out_file = out_dir / "trufor_result.npz"
+    if out_file.exists():
+        out_file.unlink()                          # test.py never overwrites an existing result
     try:
         inp = _trufor_input(ctx.path, ctx.work_dir)
         if _trufor_lock.locked():
@@ -96,17 +115,18 @@ def trufor(ctx: Context) -> list[Finding]:
         with _trufor_lock:
             ctx.progress(f"running TruFor on {'GPU' if os.environ.get('PRAMAAN_TRUFOR_GPU', '-1') != '-1' else 'CPU'} "
                          f"(up to {TRUFOR_TIMEOUT // 60} min)")
-            _trufor_run(inp, out_dir)
-        npz = next(out_dir.rglob("*.npz"))
-        res = np.load(npz)
+            _trufor_run(inp, out_file)
+        res = np.load(out_file)
     except subprocess.TimeoutExpired:
         return [unavailable("IMG_TRUFOR", "image", "pixel", "TruFor localiser",
                             f"TruFor took longer than {TRUFOR_TIMEOUT} s and was stopped (CPU too slow or out of memory). "
                             "Other checks are unaffected. Raise PRAMAAN_TRUFOR_TIMEOUT or lower PRAMAAN_TRUFOR_MAX_SIDE.")]
-    except StopIteration:
-        return [unavailable("IMG_TRUFOR", "image", "pixel", "TruFor localiser", "TruFor ran but wrote no .npz output")]
     except Exception as e:
         return [unavailable("IMG_TRUFOR", "image", "pixel", "TruFor localiser", f"TruFor failed: {e}")]
+    if "score" not in res:
+        return [unavailable("IMG_TRUFOR", "image", "pixel", "TruFor localiser",
+                            "TruFor produced a map but no detection score (old or wrong weights file?). "
+                            "Re-run: python scripts/setup_all.py --trufor")]
     score = float(res["score"])
     heat = res["map"].astype(float)
     conf = res["conf"].astype(float) if "conf" in res else np.ones_like(heat)
@@ -193,7 +213,8 @@ _hf_lock = __import__("threading").Lock()
 
 def _hf_classifier():
     """Pretrained real-vs-AI image classifier from the Hugging Face Hub (default: Ateeqq/ai-vs-human-image-detector,
-    SigLIP-2, Apache-2.0, fine-tuned on 60k AI + 60k real images incl. Midjourney v6.1, Flux 1.1, SD 3.5, GPT-4o).
+    SigLIP-based, Apache-2.0, fine-tuned on ~60k AI + ~60k real images; the model card does not list the generators
+    and reports 99.2% accuracy only on its own test split, with no external evaluation).
     Weights are cached under models/hf after the first download (scripts/install_models.py), then it runs offline."""
     global _hf
     with _hf_lock:
